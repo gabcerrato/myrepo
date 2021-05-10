@@ -1,0 +1,371 @@
+---
+title: 'Project 2'
+author: "Gabriella Cerrato (gac2625)"
+date: "4/15/2021"
+output: github_document
+always_allow_html: yes
+output:github_document: null
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(sandwich)
+library(lmtest)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+#I have chosen to explore data regarding the salaries and game statistics of NBA players during the 2018-2019 basketball season. I have chosen a dataset of the salaries of NBA players during the 2018-2019 season (https://hoopshype.com/salaries/2018-2019/) as well as a dataset of game statistics (https://www.nbastuffer.com/2018-2019-nba-player-stats/) that included data of the number of minutes played per game, points scored per game, age of the players, etc.. I chose this data set because I thought it would be interesting to see how the salaries earned by the players relates to their performance in games. In the joined dataset, there are 33 columns, 169 rows, and a total of 593 observations. . The variables I chose to focus on in this project were the minutes played per game, points played per game, position, age, and salaries of the NBA players. I think the relationship between positions and salary, points scored and minutes played would be interesting to investigate because different basketball positions have different roles that are not always about scoring points.
+
+```{r Introduction}
+#data set of the game statistics of NBA players during the 2018-2019 season
+library(readxl)
+NBAplayerstats <- read_excel("~/Downloads/2018-2019 NBA Player Stats.project2.xlsx")
+View(NBAplayerstats)
+
+#data set of the salaries of NBA players during the 2018-2019 season
+library(readxl)
+NBA_salaries <- read_excel("~/Downloads/NBA salaries.project2.xlsx")
+View(NBA_salaries)
+
+#to tidy the data set of the salaries earned by players, I removed a redundant column that specified row number and removed a column of the salaries adjusted for inflation
+NBAsalaries <- subset(NBA_salaries, select = -c(1, 4)) %>% 
+#I renamed the columns in the salary data set
+  rename("NAME" = 1, "Salary ($)" = 2)
+
+#In the second data set, I also renamed some columns for clarity and brevity. MPG stands for minutes played per game, etc. 
+NBAplayerstats <- subset(NBAplayerstats, select = -c(1)) %>%
+  rename(
+   "NAME" = 1, "TEAM" = 2, "Position" =  3, "Age" = 4, "GP" = 5, "MPG" = 6,  "Percentage of Team Minutes Used" = 7, "Usage Rate" = 8, "Turnover Rate" = 9, "FTA" = 10, "FT%" = 11, "2PA" = 12, "2P%" = 13, "3PA" = 14, "3P%" = 15, "Effective Shooting %" = 16, "True Shooting %" = 17, "Points Per Game" = 18, "Rebounds Per Game"= 19, "Total Rebound Percentage" = 20, "Assists Per Game" = 21, "Assists %" = 22, "Steals Per Game" = 23, "Blocks Per Game" = 24, "Turnovers Per Game" = 25, "Versatility Index" = 26, "Offensive Rating" = 27, "Defensive Rating" = 28)  
+
+#I used full join to join the data sets. The common variable used to join the data set was the name of the player.
+NBA <- NBAsalaries %>% 
+  full_join(NBAplayerstats, by = c("NAME"))
+
+# I removed NAs from the joined data set. 424 cases were dropped because the salary data set included every single player in the league, but there were not game stats for every single player in the league in the other data set. Following NA removal, the joined data set has 593 observations. 
+NBAclean <- NBA %>% drop_na()
+
+```
+
+
+```{r EDA}
+#convert observation from character to factor
+summary(NBAclean)
+  NBAclean <- NBAclean %>% mutate_at(c(2, 5:29),as.numeric)
+  NBAclean %>% mutate_if(is.character,as.factor)
+  
+#I explored how the variable of minutes played per game and points scored per game differ across positions
+  NBAclean %>%
+  group_by(Position) %>%
+  summarize(mean(MPG), mean(`Points Per Game`))
+  
+#The position C-F has the lowest mean minutes played per game and mean points scored per game. This is likely due to only player having this position in the data set. 
+  
+NBAclean %>%
+  group_by(Position) %>%
+  summarize(mean(`Salary ($)`))  
+
+#The position F-C has the highest salary of all of the positions 
+
+# Represent with a graph 
+NBAclean %>%
+  select(Position, MPG, 'Points Per Game') %>%
+  pivot_longer(-1,names_to='DV', values_to='measure') %>%
+  ggplot(aes(Position,measure,fill= Position)) +
+  geom_bar(stat="summary", fun = "mean") +
+  geom_errorbar(stat="summary", fun.data = "mean_se", width=.5) +
+  facet_wrap(~DV, nrow=2) +
+  coord_flip() + 
+  ylab("") + 
+  theme(legend.position = "none")
+
+#investigate how points per game is correlated with minutes played per game with correlation coefficient 
+cor(NBAclean$MPG, NBAclean$`Points Per Game`)
+
+#calculate the mean and standard deviation of the minutes played per game 
+NBAclean %>%
+    summarize(mean_MPG= mean(MPG), st_dev_MPG = sd(MPG))
+
+#calculate the mean and standard deviation of the points scored per game 
+NBAclean %>%
+    summarize(mean_PPG = mean(NBAclean$`Points Per Game`), st_dev_PPG = sd(NBAclean$`Points Per Game`))
+
+```
+ 
+
+
+```{r manova}
+# Perform MANOVA with 2 response variables listed in cbind()
+manova_position <- manova(cbind(NBAclean$MPG,NBAclean$`Points Per Game`) ~ Position, data = NBAclean)
+
+# Output of MANOVA
+summary(manova_position)
+
+# If MANOVA is significant then we can perform one-way ANOVA for each variable
+  summary.aov(manova_position)
+
+#A one way MANOVA was performed to determine the effect of position on the dependent variables minutes played per game and points scored per game. The null hypothesis failed to be rejected so the points scored per game and minutes played per game do not differ across positions. Because the MANOVA was not significant, no post-hoc analysis was necessary. The p-value associated with the F-statistic is 0.5855, which is greater than .05. The approximate F value is 0.86275 and Pillai's trace is 0.06.
+  
+  
+#Run ANOVA to compare the length by different doses
+summary(aov(NBAclean$`Points Per Game` ~ NBAclean$Position, data = NBAclean))
+
+#probability of a type 1 error
+#I ran one MANOVA test that was not significant 
+1- 0.95^(1)
+#the probability of a type 1 error is .05
+```
+
+
+```{r randomization test}
+#Run ANOVA to find F statistic for the relationship between points per game and position
+summary(aov(NBAclean$`Points Per Game` ~ NBAclean$Position, data = NBAclean))
+
+obs_F <- 1.009
+
+#Null hypothesis: The mean points per game is the same for each different position. Alternate hypothesis: The mean points per game is different for each different position.
+
+# Randomization test (using replicate)
+Fs <- replicate(5000,{
+  # Randomly permute the response variable across positions
+  new <- NBAclean %>%
+    mutate(`Points Per Game` = sample(`Points Per Game`))
+  # Compute variation within groups
+  SSW <- new %>%
+    group_by(Position) %>%
+    summarize(SSW = sum((`Points Per Game` - mean(`Points Per Game`))^2)) %>%
+    summarize(sum(SSW)) %>% 
+    pull
+  # Compute variation between groups
+  SSB <- new %>% 
+    mutate(mean = mean(`Points Per Game`)) %>%
+    group_by(Position) %>% 
+    mutate(groupmean = mean(`Points Per Game`)) %>%
+    summarize(SSB = sum((mean - groupmean)^2)) %>%
+    summarize(sum(SSB)) %>%
+    pull
+  # Compute the F-statistic (ratio of MSB and MSW)
+  # df for SSB is 7 groups - 1 = 6
+  # df for SSW is 169 observations - 7 groups = 162
+  (SSB/6)/(SSW/57)
+})
+
+# Represent the distribution of the F-statistics for each randomized sample
+hist(Fs, prob=T, main = "Distribution of Sampled F-statistics"); abline(v = obs_F, col="red",add=T)
+
+# Calculate the proportion of F statistic that are greater than the observed F-statistic
+mean(Fs > obs_F)
+
+#the proportion is 0.0122
+```
+
+
+```{r linear regression}
+#mean center the variable points per game 
+NBAclean$Points_Per_Game_c <- NBAclean$`Points Per Game` - mean(NBAclean$`Points Per Game`, na.rm = TRUE)
+
+#mean center the variable minutes per game(MPG)
+NBAclean$MPG_c <- NBAclean$`MPG` - mean(NBAclean$`MPG`, na.rm = TRUE)
+
+#mean mean center the variable salary
+NBAclean$Salary_c <- NBAclean$`Salary ($)` - mean(NBAclean$`Salary ($)`, na.rm = TRUE)
+
+#regression model
+#option 1
+fit_c1 <- lm(NBAclean$`Points Per Game` ~ NBAclean$Position * MPG_c, data = NBAclean)
+summary(fit_c1)
+
+#Only the position C had a significant effect on points scored per game. Its p value was 2e-16 and less than 0.05.
+
+  #plot the point per game by minutes per game 
+  NBAclean %>% ggplot(aes(x = MPG_c, y = `Points Per Game`, color = Position)) +
+  geom_smooth(method=lm) 
+
+```
+
+```{r assumptions}
+# Linearity and homoscedasticity
+plot(fit_c1, which = 1)
+#The red line is approximately horizontal at 0, so it passes the linearity assumption
+
+#homoscedasticity
+bptest(fit_c1)
+#the p value is less than 0.05, so the assumption has not been violated
+
+# Normality
+plot(fit_c1, which = 2)
+#The residual points follow a straight line, so they are normally distributed 
+
+shapiro.test(fit_c1$residuals)
+
+```
+
+
+```{r Standard Error}
+
+#graph the relationship
+ggplot3 <- ggplot(NBAclean, aes(x = MPG, y = `Points Per Game`, color = Position)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm', se = FALSE) +
+  labs(title ="Minutes Played Per Game vs. Points Scored Per Game", 
+       x = "Minutes Played Per Game", y = "Points Scored Per Game")
+ggplot3
+
+# Fit a regression model
+fit <- lm(NBAclean$`Points Per Game` ~ NBAclean$Position * MPG_c, data = NBAclean)
+
+# Uncorrected Standard Errors
+summary(fit)$coef
+
+# Robust Standard Errors
+library(sandwich)
+coeftest(fit, vcov = vcovHC(fit))
+```
+
+
+```{r bootstrapping}
+#bootstrap repeated 5000 times, and save the coefficients each time
+samp_SEs <- replicate(5000, {
+  # Bootstrap your data (resample observations)
+  boot_data <- sample_frac(NBAclean, replace = TRUE)
+  # Fit regression model
+  fitboot <- lm(NBAclean$`Points Per Game` ~ MPG_c * NBAclean$Position, data = boot_data)
+  # Save the coefficients
+  coef(fitboot)
+})
+
+# Estimated SEs
+samp_SEs %>%
+  # Transpose the obtained matrices
+  t %>%
+  # Consider the matrix as a data frame
+  as.data.frame %>%
+  # Compute the standard error (standard deviation of the sampling distribution)
+  summarize_all(sd)
+
+##  Bootstrap from residuals
+# Repeat bootstrapping 5000 times, saving the coefficients each time
+resids_SEs <- replicate(5000, {
+  # Bootstrap your residuals (resample with replacement)
+  new_resids <- sample(fit$residuals, replace = TRUE)
+  # Consider a new response as fitted values plus residuals
+  boot_data <- NBAclean 
+  boot_data$new_y = fit$fitted.values + new_resids
+  # Fit regression model
+  fitboot <- lm(new_y ~ NBAclean$MPG_c * NBAclean$Position, data = boot_data)
+  # Save the coefficients
+  coef(fitboot)
+})
+
+# Estimated SEs
+resids_SEs %>%
+  # Transpose the obtained matrices
+  t %>%
+  # Consider the matrix as a data frame
+  as.data.frame %>%
+  # Compute the standard error (standard deviation of the sampling distribution)
+  summarize_all(sd)
+
+```
+
+```{r logistic regression}
+#create a new binary variable, over 30 yes or no
+NBAclean$"Older Than 30"<-ifelse(NBAclean$Age>30,"Yes","No")
+
+NBAage <- NBAclean %>%
+  select('Older Than 30', `Salary ($)`, 'MPG') %>%
+  mutate(y = ifelse(NBAclean$`Older Than 30` == "Yes", 1, 0)) 
+
+#convert to factor
+NBAage$y <- as.factor(NBAage$y)
+class(NBAage$y)
+
+#perform logistic regression
+fit2 <- glm(NBAage$y ~ NBAage$`Salary ($)` + NBAage$MPG, data = NBAage, family = "binomial")
+summary(fit2)
+#Salary does have a significant effect on whether the players are classified as over 30. THe p value is 0.024828 which is less than .05 so salary has a significant effect. Minutes per game by the players does not have a significant effect on whether is classified as over 30 . THe p value is 0.064637 which is greater than .05 so the minutes played per game does not have a significant effect.
+
+# Confusion matrix
+prediction <- NBAage$prob <- predict(fit2, type = "response")
+
+NBAage$predicted <- ifelse(NBAage$prob > .5, "older", "younger") 
+
+table(truth = NBAage$y, prediction = NBAage$predicted)
+
+# Sensitivity (true positive rate) 
+39 / (48) 
+#39 + 9 = 48
+#the sensitivity is 0.8125
+
+# Specificity (true negative rate)
+6 / (121)
+#115 + 6 = 121
+#the specificity is 0.04958678
+
+# Predicted log odds 
+NBAage$logit <- predict(fit2, type = "link") 
+
+# Density plot of log-odds for each outcome
+NBAage %>%
+  ggplot() + 
+  geom_density(aes(logit, color = y, fill = y), alpha = .4) +
+    geom_rug(aes(logit, color = y)) +
+  geom_text(x = -5, y = .07, label = "TN = 431") +
+  geom_text(x = -1.75, y = .008, label = "FN = 19") +
+  geom_text(x = 1, y = .006, label = "FP = 13") +
+  geom_text(x = 5, y = .04, label = "TP = 220") +
+  theme(legend.position = c(.85,.85)) +
+  geom_vline(xintercept = 0) + 
+  xlab("logit (log-odds)")
+
+
+#calculate ROC curve by hand
+NBAage$prob <- predict(fit2, type = "response")
+View(NBAage)
+
+# Sensitivity (true positive rate)
+mean(NBAage[NBAage$y == 1, ]$prob > .9)
+
+# Specificity (true negative rate)
+mean(NBAage[NBAage$y == 0, ]$prob <= .9)
+
+# Define functions to calculate sensitivity and specificity for different cutoffs
+sens <- function(p, data = data, y = y) mean(data[data$y == 1, ]$prob > p)
+spec <- function(p, data = data, y = y) mean(data[data$y == 0, ]$prob <= p)
+
+# Apply the functions to our data
+sensitivity <- sapply(seq(0,1,.01),sens,NBAage)
+specificity<-sapply(seq(0,1,.01),spec,NBAage)
+
+# Store values of sensitivity and specificity in a dataframe with cutoff values
+ROC <- data.frame(sensitivity, specificity, cutoff = seq(0,1,.01))
+
+# Represent the relationship between sensitivity and specificity for different cutoffs
+ROC %>%
+  pivot_longer(-cutoff, names_to = "key", values_to = "rate") %>%
+  ggplot(aes(cutoff, rate, color = key)) + 
+  geom_path() +
+  geom_vline(xintercept = c(.1,.5,.9), lty = 2, color = "gray50")
+
+# Instead plot Sensitivity (TPR) against 1 - Specificity (FPR): this is called a ROC curve!
+ROC$TPR <- sensitivity
+ROC$FPR <- 1-specificity 
+
+ROC %>%
+  ggplot(aes(FPR, TPR)) + 
+  geom_path(size = 1.5) + 
+  geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), lty = 2) +
+  scale_x_continuous(limits = c(0,1))
+
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
