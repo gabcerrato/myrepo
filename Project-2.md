@@ -82,88 +82,12 @@ NBAclean <- NBA %>% drop_na()
 summary(NBAclean)
 ```
 
-    ##      NAME             Salary ($)           TEAM             Position        
-    ##  Length:169         Min.   :   77250   Length:169         Length:169        
-    ##  Class :character   1st Qu.: 2165481   Class :character   Class :character  
-    ##  Mode  :character   Median : 7000000   Mode  :character   Mode  :character  
-    ##                     Mean   : 9916752                                        
-    ##                     3rd Qu.:14800000                                        
-    ##                     Max.   :37457154                                        
-    ##      Age                 GP                MPG           
-    ##  Length:169         Length:169         Length:169        
-    ##  Class :character   Class :character   Class :character  
-    ##  Mode  :character   Mode  :character   Mode  :character  
-    ##                                                          
-    ##                                                          
-    ##                                                          
-    ##  Percentage of Team Minutes Used  Usage Rate        Turnover Rate     
-    ##  Length:169                      Length:169         Length:169        
-    ##  Class :character                Class :character   Class :character  
-    ##  Mode  :character                Mode  :character   Mode  :character  
-    ##                                                                       
-    ##                                                                       
-    ##                                                                       
-    ##      FTA                FT%                2PA                2P%           
-    ##  Length:169         Length:169         Length:169         Length:169        
-    ##  Class :character   Class :character   Class :character   Class :character  
-    ##  Mode  :character   Mode  :character   Mode  :character   Mode  :character  
-    ##                                                                             
-    ##                                                                             
-    ##                                                                             
-    ##      3PA                3P%            Effective Shooting % True Shooting %   
-    ##  Length:169         Length:169         Length:169           Length:169        
-    ##  Class :character   Class :character   Class :character     Class :character  
-    ##  Mode  :character   Mode  :character   Mode  :character     Mode  :character  
-    ##                                                                               
-    ##                                                                               
-    ##                                                                               
-    ##  Points Per Game    Rebounds Per Game  Total Rebound Percentage
-    ##  Length:169         Length:169         Length:169              
-    ##  Class :character   Class :character   Class :character        
-    ##  Mode  :character   Mode  :character   Mode  :character        
-    ##                                                                
-    ##                                                                
-    ##                                                                
-    ##  Assists Per Game    Assists %         Steals Per Game    Blocks Per Game   
-    ##  Length:169         Length:169         Length:169         Length:169        
-    ##  Class :character   Class :character   Class :character   Class :character  
-    ##  Mode  :character   Mode  :character   Mode  :character   Mode  :character  
-    ##                                                                             
-    ##                                                                             
-    ##                                                                             
-    ##  Turnovers Per Game Versatility Index  Offensive Rating   Defensive Rating  
-    ##  Length:169         Length:169         Length:169         Length:169        
-    ##  Class :character   Class :character   Class :character   Class :character  
-    ##  Mode  :character   Mode  :character   Mode  :character   Mode  :character  
-    ##                                                                             
-    ##                                                                             
-    ## 
 
 ``` r
   NBAclean <- NBAclean %>% mutate_at(c(2, 5:29),as.numeric)
   NBAclean %>% mutate_if(is.character,as.factor)
 ```
 
-    ## # A tibble: 169 x 29
-    ##    NAME      `Salary ($)` TEAM  Position   Age    GP   MPG `Percentage of Team …
-    ##    <fct>            <dbl> <fct> <fct>    <dbl> <dbl> <dbl>                 <dbl>
-    ##  1 Stephen …     37457154 Gol   G         31.2    22  38.4                  80.1
-    ##  2 Russell …     35665000 Okc   G         30.6     5  39.4                  82.2
-    ##  3 Chris Pa…     35654150 Hou   G         34.1    11  36.1                  75.3
-    ##  4 Kyle Low…     32700000 Tor   G         33.2    24  37.5                  78.2
-    ##  5 Blake Gr…     31873932 Det   F         30.2     2  29.1                  60.5
-    ##  6 Gordon H…     31214295 Bos   F         29.2     9  29.6                  61.7
-    ##  7 James Ha…     30570000 Hou   G         29.8    11  38.6                  80.3
-    ##  8 Paul Geo…     30560700 Okc   F         29.1     5  40.8                  85  
-    ##  9 Kevin Du…     30000000 Gol   F         30.7    12  36.8                  76.7
-    ## 10 Paul Mil…     29230769 Den   F         34.3    14  33.5                  69.8
-    ## # … with 159 more rows, and 21 more variables: Usage Rate <dbl>,
-    ## #   Turnover Rate <dbl>, FTA <dbl>, FT% <dbl>, 2PA <dbl>, 2P% <dbl>, 3PA <dbl>,
-    ## #   3P% <dbl>, Effective Shooting % <dbl>, True Shooting % <dbl>,
-    ## #   Points Per Game <dbl>, Rebounds Per Game <dbl>,
-    ## #   Total Rebound Percentage <dbl>, Assists Per Game <dbl>, Assists % <dbl>,
-    ## #   Steals Per Game <dbl>, Blocks Per Game <dbl>, Turnovers Per Game <dbl>,
-    ## #   Versatility Index <dbl>, Offensive Rating <dbl>, Defensive Rating <dbl>
 
 ``` r
 #I explored how the variable of minutes played per game and points scored per game differ across positions
@@ -184,7 +108,7 @@ summary(NBAclean)
     ## 7 G-F             20.5                        7.2
 
 ``` r
-#The position C-F has the lowest mean minutes played per game and mean points scored per game. This is likely due to only player having this position in the data set. 
+#The position Center-Forward has the lowest mean minutes played per game and mean points scored per game. This is likely due to only player having this position in the data set. 
   
 NBAclean %>%
   group_by(Position) %>%
@@ -237,6 +161,7 @@ NBAclean %>%
     ##   mean_MPG st_dev_MPG
     ##      <dbl>      <dbl>
     ## 1     22.7       10.8
+    #the mean minutes played per game is 22.7 minutes and the satandard devaiton is 10.8 minutes.
 
 ``` r
 #calculate the mean and standard deviation of the points scored per game 
@@ -248,6 +173,8 @@ NBAclean %>%
     ##   mean_PPG st_dev_PPG
     ##      <dbl>      <dbl>
     ## 1     9.97       7.17
+    
+    #The mean points per game across players is 9.97 points. The standard deviation of points per game is 7.17
 
 ``` r
 # Perform MANOVA with 2 response variables listed in cbind()
@@ -262,8 +189,7 @@ summary(manova_position)
     ## Residuals 162
 
 ``` r
-# If MANOVA is significant then we can perform one-way ANOVA for each variable
-  summary.aov(manova_position)
+*Manova was not significant*
 ```
 
     ##  Response 1 :
@@ -440,7 +366,7 @@ bptest(fit_c1)
     ## BP = 32.953, df = 11, p-value = 0.0005354
 
 ``` r
-#the p value is less than 0.05, so the assumption has not been violated
+#the assumption has been violated 
 
 # Normality
 plot(fit_c1, which = 2)
